@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'price_summary_screen.dart';
 import 'package:dai_auto_app/models/car.dart';
+import 'package:dai_auto_app/screens/price_summary_screen.dart';
 
 class SelectDateTimeScreen extends StatefulWidget {
   const SelectDateTimeScreen({

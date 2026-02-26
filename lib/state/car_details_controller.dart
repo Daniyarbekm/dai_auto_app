@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/car_repository.dart';
-import '../models/car.dart';
+import 'package:dai_auto_app/data/car_repository.dart';
+import 'package:dai_auto_app/models/car.dart';
 
 class CarDetailsController extends ChangeNotifier {
   CarDetailsController({required this.repo});

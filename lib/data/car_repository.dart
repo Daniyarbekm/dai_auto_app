@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/car.dart';
+import 'package:dai_auto_app/models/car.dart';
 
 abstract class CarRepository {
   Future<Car> getCarById(String id);
