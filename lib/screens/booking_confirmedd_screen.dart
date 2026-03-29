@@ -29,27 +29,33 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   static const Color card = Color(0xFF111317);
   static const Color green = Color(0xFF3DDC84);
 
-  late final Ticker _ticker;
+  bool _processing = true;
 
   late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
-    _ticker = Ticker(() {
-      if (mounted) setState(() {});
-    })..start();
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+      duration: const Duration(milliseconds: 1100),
+    );
+
+    _finishProcessing();
+  }
+
+  Future<void> _finishProcessing() async {
+    // Simulate processing for 3 seconds
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    setState(() => _processing = false);
+    _pulseController.forward(from: 0);
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _ticker.dispose();
     super.dispose();
   }
 
@@ -91,58 +97,62 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
       body: SafeArea(
         child: Stack(
           children: [
-            // Full-screen pulse overlay (does not affect layout)
+            // One-shot pulse from the top check icon (does not affect layout)
             IgnorePointer(
               ignoring: true,
-              child: Center(
+              child: Positioned.fill(
                 child: AnimatedBuilder(
                   animation: _pulseController,
                   builder: (context, _) {
+                    // Only show pulse after processing is done
+                    if (_processing || _pulseController.value == 0) {
+                      return const SizedBox.shrink();
+                    }
+
                     final size = MediaQuery.of(context).size;
                     final maxDiameter = math.sqrt(
                           size.width * size.width + size.height * size.height,
                         ) +
                         200;
 
-                    Widget ring(double t) {
-                      final eased = Curves.easeOutCubic.transform(t);
-                      final diameter = 120 + (maxDiameter - 120) * eased;
-                      final opacity = (1.0 - t).clamp(0.0, 1.0);
+                    final t = _pulseController.value; // 0..1
+                    final eased = Curves.easeOutCubic.transform(t);
+                    final diameter = 60 + (maxDiameter - 60) * eased;
+                    final opacity = (1.0 - t).clamp(0.0, 1.0);
 
-                      return Opacity(
-                        opacity: opacity,
-                        child: Container(
-                          width: diameter,
-                          height: diameter,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: green.withOpacity(0.30 * opacity),
-                            border: Border.all(
-                              color: green.withOpacity(1.0),
-                              width: 18,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: green.withOpacity(1.0 * opacity),
-                                blurRadius: 120,
-                                spreadRadius: 40,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-
-                    final t1 = _pulseController.value;
-                    final t2 = (_pulseController.value + 0.45) % 1.0;
-                    final t3 = (_pulseController.value + 0.90) % 1.0;
+                    // Anchor pulse to the check icon center
+                    const topPadding = 34.0;
+                    const iconSize = 60.0;
+                    final originY = topPadding + (iconSize / 2);
 
                     return Stack(
-                      alignment: Alignment.center,
                       children: [
-                        ring(t3),
-                        ring(t2),
-                        ring(t1),
+                        Positioned(
+                          left: (MediaQuery.of(context).size.width - diameter) / 2,
+                          top: originY - (diameter / 2),
+                          child: Opacity(
+                            opacity: opacity,
+                            child: Container(
+                              width: diameter,
+                              height: diameter,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: green.withOpacity(0.10 * opacity),
+                                border: Border.all(
+                                  color: green.withOpacity(0.95),
+                                  width: 10,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: green.withOpacity(0.45 * opacity),
+                                    blurRadius: 90,
+                                    spreadRadius: 24,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -150,129 +160,156 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
               ),
             ),
 
-            // Existing content
+            // Existing content + bottom button
             Column(
               children: [
-                const SizedBox(height: 34),
-
-                // Check icon
-                Center(
-                  child: Stack(
-                    alignment: Alignment.center,
+                Expanded(
+                  child: Column(
                     children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: green.withOpacity(0.18),
-                          border: Border.all(color: green, width: 2),
+                      const SizedBox(height: 34),
+
+                      // Top icon: processing loader for 3s, then green check
+                      Center(
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: (_processing ? gold : green).withOpacity(0.18),
+                            border: Border.all(
+                              color: _processing ? gold : green,
+                              width: 2,
+                            ),
+                          ),
+                          child: _processing
+                              ? const Padding(
+                                  padding: EdgeInsets.all(14),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    valueColor: AlwaysStoppedAnimation<Color>(gold),
+                                  ),
+                                )
+                              : const Icon(Icons.check_rounded, color: green, size: 32),
                         ),
-                        child: const Icon(Icons.check_rounded, color: green, size: 32),
                       ),
-                    ],
-                  ),
-                ),
 
-                const SizedBox(height: 22),
+                      const SizedBox(height: 22),
 
-                const Center(
-                  child: Text(
-                    'Booking Confirmed!',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    'Your car has been successfully booked',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-
-                // Car card
-                _SurfaceCard(
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.network(
-                          widget.car.imageUrl,
-                          width: 76,
-                          height: 56,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 76,
-                            height: 56,
-                            color: Colors.black,
+                      Center(
+                        child: Text(
+                          _processing ? 'Processing Payment…' : 'Booking Confirmed!',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${widget.car.brand} ${widget.car.model}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${widget.car.year} / ${widget.car.fuel}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.55),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          _processing
+                              ? 'Please wait while we confirm your payment'
+                              : 'Your car has been successfully booked',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
+
+                      const SizedBox(height: 18),
+
+                      if (!_processing) ...[
+                        // Car card
+                        _SurfaceCard(
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.network(
+                                  widget.car.imageUrl,
+                                  width: 76,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Container(
+                                    width: 76,
+                                    height: 56,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${widget.car.brand} ${widget.car.model}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${widget.car.year} / ${widget.car.fuel}',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.55),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Details card
+                        _SurfaceCard(
+                          child: Column(
+                            children: [
+                              _ConfirmRow(
+                                icon: Icons.directions_car_filled_outlined,
+                                title: 'Booking ID',
+                                value: widget.bookingId,
+                              ),
+                              _divider(),
+                              _ConfirmRow(
+                                icon: Icons.location_on_outlined,
+                                title: 'Pickup',
+                                value: widget.pickupLocation,
+                              ),
+                              _divider(),
+                              _ConfirmRow(
+                                icon: Icons.access_time_rounded,
+                                title: 'Status',
+                                value: status,
+                                valueColor: ready ? green : gold,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 14),
-
-                // Details card
-                _SurfaceCard(
-                  child: Column(
-                    children: [
-                      _ConfirmRow(
-                        icon: Icons.directions_car_filled_outlined,
-                        title: 'Booking ID',
-                        value: widget.bookingId,
-                      ),
-                      _divider(),
-                      _ConfirmRow(
-                        icon: Icons.location_on_outlined,
-                        title: 'Pickup',
-                        value: widget.pickupLocation,
-                      ),
-                      _divider(),
-                      _ConfirmRow(
-                        icon: Icons.access_time_rounded,
-                        title: 'Status',
-                        value: status,
-                        valueColor: ready ? green : gold,
-                      ),
-                    ],
+                if (!_processing)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: _PrimaryButton(
+                      text: 'Back to Home',
+                      onTap: () {
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                      },
+                    ),
                   ),
-                ),
               ],
             ),
           ],
@@ -398,21 +435,5 @@ class _PrimaryButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Lightweight ticker without importing animation libraries.
-class Ticker {
-  Ticker(this.onTick);
-  final VoidCallback onTick;
-  Timer? _timer;
-
-  void start() {
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => onTick());
-  }
-
-  void dispose() {
-    _timer?.cancel();
-    _timer = null;
   }
 }

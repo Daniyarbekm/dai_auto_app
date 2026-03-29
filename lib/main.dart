@@ -10,7 +10,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: CarDetailsScreen(carId: 'car_1'),
+      home: CarDetailsScreen(carId: '1'),
     );
   }
 }

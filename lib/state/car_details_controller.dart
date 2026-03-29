@@ -19,7 +19,8 @@ class CarDetailsController extends ChangeNotifier {
     try {
       car = await repo.getCarById(carId);
     } catch (e) {
-      error = 'Failed to load car details';
+      error = '$e';
+      debugPrint(error);
     } finally {
       isLoading = false;
       notifyListeners();

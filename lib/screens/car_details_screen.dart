@@ -1,6 +1,7 @@
 import 'package:dai_auto_app/screens/select_date_time_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:dai_auto_app/data/car_repository.dart';
+import 'package:dai_auto_app/app/app_di.dart';
 import 'package:dai_auto_app/models/car.dart';
 import 'package:dai_auto_app/state/car_details_controller.dart';
 
@@ -24,7 +25,7 @@ class _CarDetailsScreenState extends State<CarDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    controller = CarDetailsController(repo: widget.repo ?? MockCarRepository());
+    controller = CarDetailsController(repo: widget.repo ?? AppDI.carRepo);
     controller.addListener(_onChanged);
     controller.load(widget.carId);
   }

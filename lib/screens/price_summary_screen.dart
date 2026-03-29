@@ -1,9 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:dai_auto_app/models/car.dart';
-
-class PriceSummaryScreen extends StatelessWidget {
+import 'booking_confirmedd_screen.dart';
+import 'agreement_screen.dart';
+import 'payment_screen.dart';
+class PriceSummaryScreen extends StatefulWidget {
   const PriceSummaryScreen({
     super.key,
     required this.car,
@@ -25,35 +25,38 @@ class PriceSummaryScreen extends StatelessWidget {
   final int days;
   final double totalFromBackend;
 
+  @override
+  State<PriceSummaryScreen> createState() => _PriceSummaryScreenState();
+}
+
+class _PriceSummaryScreenState extends State<PriceSummaryScreen> {
   static const Color bg = Color(0xFF0B0C0E);
   static const Color gold = Color(0xFFD6A34A);
-  static const Color card = Color(0xFF111317);
+  static const Color green = Color(0xFF3DDC84);
+
+  bool agreed = false;
 
   @override
   Widget build(BuildContext context) {
-    const double serviceFee = 5.0;
+    const double serviceFee = 5;
+    const double insuranceFee = 5;
 
-    final String pickupLine = _formatDateTime(pickupDateTime);
-    final String dropoffLine = _formatDateTime(dropoffDateTime);
+    final pickup = widget.pickupDateTime;
+    final dropoff = widget.dropoffDateTime;
 
-    // Duration (rounded up to full hours)
-    final diff = dropoffDateTime.difference(pickupDateTime);
-    final totalMinutes = diff.inMinutes;
-    final totalHours = (totalMinutes / 60).ceil().clamp(0, 24 * 365);
-    final calcDays = totalHours ~/ 24;
-    final calcHours = totalHours % 24;
+    // duration (rounded up to hours)
+    final totalHours = ((dropoff.difference(pickup).inMinutes) / 60)
+        .ceil()
+        .clamp(0, 24 * 365);
 
-    final dayCost = car.pricePerDay * calcDays;
-    final hourCost = (calcHours == 0) ? 0 : (car.pricePerHour * calcHours);
-    final rentByRates = (dayCost + hourCost).toDouble();
+    final dateText = _formatDateLong(pickup); // Sunday, March 15
+    final timeText = _formatTime(pickup); // 10:00
+    final durationText = totalHours == 1 ? '1 hour' : '$totalHours hours';
 
-    // Total is calculated from selected pickup/drop-off + fixed service fee.
-    // When backend is connected, you can replace this with the backend total.
-    final totalToShow = rentByRates + serviceFee;
+    final rent = (widget.car.pricePerHour * totalHours).toDouble();
+    final total = rent + serviceFee + insuranceFee;
 
-    // Если у твоей модели Car поля называются иначе — скажи, подгоню.
-    final String subtitle =
-        '${car.year} / ${car.fuel} / ${car.type}';
+    final confirmText = 'Confirm \$${total.toStringAsFixed(0)}';
 
     return Scaffold(
       backgroundColor: bg,
@@ -80,7 +83,7 @@ class PriceSummaryScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
+             ),
               const SizedBox(height: 18),
 
               // Car card
@@ -90,7 +93,7 @@ class PriceSummaryScreen extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: Image.network(
-                        car.imageUrl,
+                        widget.car.imageUrl,
                         width: 76,
                         height: 56,
                         fit: BoxFit.cover,
@@ -107,21 +110,46 @@ class PriceSummaryScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${car.brand} ${car.model}',
+                            '${widget.car.brand} ${widget.car.model}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
                               fontSize: 16,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.55),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: gold.withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  widget.car.fuel.isNotEmpty
+                                      ? widget.car.fuel
+                                      : 'Comfort',
+                                  style: const TextStyle(
+                                    color: gold,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                widget.car.type.isNotEmpty
+                                    ? widget.car.type
+                                    : 'Auto',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.55),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          )
                         ],
                       ),
                     ),
@@ -129,100 +157,72 @@ class PriceSummaryScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
-              const Text(
-                'Booking Details',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Booking details card (NOW includes drop-off)
+              // BOOKING DETAILS
               _SurfaceCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _DetailRow(
-                      icon: Icons.location_on_outlined,
-                      title: 'Pickup',
-                      value: pickupLocation,
+                    Text(
+                      'BOOKING DETAILS',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.35),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                        fontSize: 12,
+                      ),
                     ),
-                    _divider(),
-                    _DetailRow(
-                      icon: Icons.access_time_rounded,
-                      title: 'Pickup time',
-                      value: pickupLine,
-                    ),
-                    _divider(),
-                    _DetailRow(
-                      icon: Icons.flag_outlined,
-                      title: 'Drop-off',
-                      value: dropoffLocation,
-                    ),
-                    _divider(),
-                    _DetailRow(
-                      icon: Icons.access_time_rounded,
-                      title: 'Drop-off time',
-                      value: dropoffLine,
-                    ),
-                    _divider(),
-                    _DetailRow(
-                      icon: Icons.shield_outlined,
-                      title: 'Duration',
-                      value: calcHours == 0
-                          ? '$calcDays day${calcDays == 1 ? '' : 's'}'
-                          : '$calcDays day${calcDays == 1 ? '' : 's'} $calcHours hour${calcHours == 1 ? '' : 's'}',
-                    ),
+                    const SizedBox(height: 12),
+                    _KeyValueRow(left: 'Date', right: dateText),
+                    const SizedBox(height: 10),
+                    _KeyValueRow(left: 'Start time', right: timeText),
+                    const SizedBox(height: 10),
+                    _KeyValueRow(left: 'Duration', right: durationText),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
 
-              const Text(
-                'Price Breakdown',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-
+              // PRICE BREAKDOWN
               _SurfaceCard(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (calcDays > 0)
-                      _PriceLine(
-                        left: '\$${car.pricePerDay} × $calcDays day${calcDays == 1 ? '' : 's'}',
-                        right: '\$${dayCost.toStringAsFixed(0)}',
-                        dim: true,
+                    Text(
+                      'PRICE BREAKDOWN',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.35),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                        fontSize: 12,
                       ),
-                    if (calcDays > 0 && calcHours > 0) const SizedBox(height: 10),
-                    if (calcHours > 0)
-                      _PriceLine(
-                        left: '\$${car.pricePerHour} × $calcHours hour${calcHours == 1 ? '' : 's'}',
-                        right: '\$${hourCost.toStringAsFixed(0)}',
-                        dim: true,
-                      ),
-                    if (calcDays == 0 && calcHours == 0)
-                      _PriceLine(
-                        left: 'Rent',
-                        right: '\$${rentByRates.toStringAsFixed(0)}',
-                        dim: true,
-                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _KeyValueRow(
+                      left:
+                      '\$${widget.car.pricePerHour} × $totalHours hr${totalHours == 1 ? '' : 's'}',
+                      right: '\$${rent.toStringAsFixed(0)}',
+                      dim: true,
+                    ),
                     const SizedBox(height: 10),
-                    _PriceLine(
+                    _KeyValueRow(
                       left: 'Service fee',
                       right: '\$${serviceFee.toStringAsFixed(0)}',
+                      dim: true,
+                    ),
+                    const SizedBox(height: 10),
+                    _KeyValueRow(
+                      left: 'Insurance',
+                      right: '\$${insuranceFee.toStringAsFixed(0)}',
                       dim: true,
                     ),
                     const SizedBox(height: 14),
                     _divider(),
                     const SizedBox(height: 14),
+
                     Row(
                       children: [
                         const Text(
@@ -235,7 +235,7 @@ class PriceSummaryScreen extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          '\$${totalToShow.toStringAsFixed(0)}',
+                          '\$${total.toStringAsFixed(0)}',
                           style: const TextStyle(
                             color: gold,
                             fontWeight: FontWeight.w900,
@@ -244,48 +244,154 @@ class PriceSummaryScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Balance
+              _SurfaceCard(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: gold.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: gold,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     Text(
-                      'Service fee is always \$5. Total is calculated from your pickup & drop-off time.',
-                      style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 12, fontWeight: FontWeight.w600),
+                      'Your balance',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.65),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      '\$150.00',
+                      style: TextStyle(
+                        color: green,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 16),
-
-              _PrimaryButton(
-                text: 'Confirm Booking',
-                onTap: () {
-                  // TODO: replace with real booking id/status from backend after successful payment
-                  const bookingId = 'HF-2026-0847';
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => BookingConfirmedScreen(
-                        car: car,
-                        bookingId: bookingId,
-                        pickupLocation: pickupLocation,
-                        pickupDateTime: pickupDateTime,
-                      ),
-                    ),
-                  );
-                },
-              ),
-
               const SizedBox(height: 14),
 
-              Center(
-                child: TextButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.55),
-                      fontWeight: FontWeight.w700,
+              // Agreement
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: agreed,
+                    onChanged: (v) => setState(() => agreed = v ?? false),
+                    activeColor: gold,
+                    checkColor: Colors.black,
+                    side: BorderSide(color: Colors.white.withOpacity(0.35)),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: RichText(
+                        text: TextSpan(
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.55),
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(text: 'I have read and agree to the '),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.baseline,
+                              baseline: TextBaseline.alphabetic,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const AgreementScreen(),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'User Agreement',
+                                  style: TextStyle(
+                                    color: gold,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' of Hermes Flow car sharing platform',
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _SecondaryButton(
+                      text: 'Cancel',
+                      onTap: () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Opacity(
+                      opacity: agreed ? 1 : 0.45,
+                      child: IgnorePointer(
+                        ignoring: !agreed,
+                        child: _PrimaryButton(
+                          text: confirmText,
+                          onTap: () async {
+                            final paid = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => PaymentScreen(totalAmount: total),
+                              ),
+                            );
+
+                            if (paid != true) return;
+
+                            const bookingId = 'HF-2026-0847';
+                            if (!mounted) return;
+
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => BookingConfirmedScreen(
+                                  car: widget.car,
+                                  bookingId: bookingId,
+                                  pickupLocation: widget.pickupLocation,
+                                  pickupDateTime: widget.pickupDateTime,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -293,24 +399,84 @@ class PriceSummaryScreen extends StatelessWidget {
       ),
     );
   }
+}
+Widget _divider() => Container(
+  height: 1,
+  color: Colors.white.withOpacity(0.06),
+);
+String _formatDateLong(DateTime dt) {
+  const weekdays = [
+    'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'
+  ];
+  const months = [
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
+  ];
+  final w = weekdays[dt.weekday - 1];
+  final m = months[dt.month - 1];
+  return '$w, $m ${dt.day}';
+}
 
-  static Widget _divider() => Container(
-    height: 1,
-    color: Colors.white.withOpacity(0.06),
-  );
+String _formatTime(DateTime dt) {
+  final hh = dt.hour.toString().padLeft(2, '0');
+  final mm = dt.minute.toString().padLeft(2, '0');
+  return '$hh:$mm';
+}
 
-  static String _formatDateTime(DateTime dt) {
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = [
-      'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'
-    ];
-    final w = weekdays[dt.weekday - 1];
-    final m = months[dt.month - 1];
-    final hh = dt.hour.toString().padLeft(2, '0');
-    final mm = dt.minute.toString().padLeft(2, '0');
-    return '$w, $m ${dt.day} at $hh:$mm';
+class _KeyValueRow extends StatelessWidget {
+  const _KeyValueRow({required this.left, required this.right, this.dim = false});
+  final String left;
+  final String right;
+  final bool dim;
+
+  @override
+  Widget build(BuildContext context) {
+    final leftColor =
+    dim ? Colors.white.withOpacity(0.55) : Colors.white.withOpacity(0.45);
+    final rightColor = dim ? Colors.white.withOpacity(0.75) : Colors.white;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(left, style: TextStyle(color: leftColor, fontWeight: FontWeight.w700)),
+        ),
+        Text(right, style: TextStyle(color: rightColor, fontWeight: FontWeight.w900)),
+      ],
+    );
   }
 }
+
+class _SecondaryButton extends StatelessWidget {
+  const _SecondaryButton({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.85),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _SurfaceCard extends StatelessWidget {
   const _SurfaceCard({required this.child});
@@ -335,93 +501,6 @@ class _SurfaceCard extends StatelessWidget {
         ],
       ),
       child: child,
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-
-  static const Color gold = Color(0xFFD6A34A);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: gold.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: gold, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.55),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PriceLine extends StatelessWidget {
-  const _PriceLine({
-    required this.left,
-    required this.right,
-    this.dim = false,
-  });
-
-  final String left;
-  final String right;
-  final bool dim;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = dim ? Colors.white.withOpacity(0.60) : Colors.white;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            left,
-            style: TextStyle(color: color, fontWeight: FontWeight.w700),
-          ),
-        ),
-        Text(
-          right,
-          style: TextStyle(color: color, fontWeight: FontWeight.w900),
-        ),
-      ],
     );
   }
 }
@@ -478,333 +557,5 @@ class _PrimaryButton extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class BookingConfirmedScreen extends StatefulWidget {
-  const BookingConfirmedScreen({
-    super.key,
-    required this.car,
-    required this.bookingId,
-    required this.pickupLocation,
-    required this.pickupDateTime,
-  });
-
-  final Car car;
-  final String bookingId;
-  final String pickupLocation;
-  final DateTime pickupDateTime;
-
-  @override
-  State<BookingConfirmedScreen> createState() => _BookingConfirmedScreenState();
-}
-
-class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with SingleTickerProviderStateMixin {
-  static const Color bg = Color(0xFF0B0C0E);
-  static const Color gold = Color(0xFFD6A34A);
-  static const Color card = Color(0xFF111317);
-  static const Color green = Color(0xFF3DDC84);
-
-  late final Ticker _ticker;
-
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseScale;
-  late final Animation<double> _pulseOpacity;
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = Ticker(() {
-      if (mounted) setState(() {});
-    })..start();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
-
-    final curved = CurvedAnimation(parent: _pulseController, curve: Curves.easeOut);
-    _pulseScale = Tween<double>(begin: 0.7, end: 1.35).animate(curved);
-    _pulseOpacity = Tween<double>(begin: 0.28, end: 0.0).animate(curved);
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  String _statusText() {
-    final now = DateTime.now();
-    final diff = widget.pickupDateTime.difference(now);
-
-    // If pickup is within 2 hours (or already started), show Ready for pickup
-    if (diff.inSeconds <= 2 * 3600) {
-      return 'Ready for pickup';
-    }
-
-    // Otherwise show countdown
-    final totalSeconds = diff.inSeconds;
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final hh = hours.toString().padLeft(2, '0');
-    final mm = minutes.toString().padLeft(2, '0');
-    return 'Pickup in $hh:$mm';
-  }
-
-  bool _isReady() {
-    final diff = widget.pickupDateTime.difference(DateTime.now());
-    return diff.inSeconds <= 2 * 3600;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _statusText();
-    final ready = _isReady();
-
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 34),
-
-                    // Check icon
-                    Center(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          FadeTransition(
-                            opacity: _pulseOpacity,
-                            child: ScaleTransition(
-                              scale: _pulseScale,
-                              child: Container(
-                                width: 120,
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: green.withOpacity(0.12),
-                                  border: Border.all(
-                                    color: green.withOpacity(0.25),
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: green.withOpacity(0.18),
-                              border: Border.all(color: green, width: 2),
-                            ),
-                            child: const Icon(Icons.check_rounded, color: green, size: 32),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    const Center(
-                      child: Text(
-                        'Booking Confirmed!',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        'Your car has been successfully booked',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Car card
-                    _SurfaceCard(
-                      child: Row(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(14),
-                            child: Image.network(
-                              widget.car.imageUrl,
-                              width: 76,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                width: 76,
-                                height: 56,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${widget.car.brand} ${widget.car.model}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${widget.car.year} / ${widget.car.fuel}',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.55),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // Details card
-                    _SurfaceCard(
-                      child: Column(
-                        children: [
-                          _ConfirmRow(
-                            icon: Icons.directions_car_filled_outlined,
-                            title: 'Booking ID',
-                            value: widget.bookingId,
-                          ),
-                          PriceSummaryScreen._divider(),
-                          _ConfirmRow(
-                            icon: Icons.location_on_outlined,
-                            title: 'Pickup',
-                            value: widget.pickupLocation,
-                          ),
-                          PriceSummaryScreen._divider(),
-                          _ConfirmRow(
-                            icon: Icons.access_time_rounded,
-                            title: 'Status',
-                            value: status,
-                            valueColor: ready ? green : gold,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: _PrimaryButton(
-                text: 'Back to Home',
-                onTap: () {
-                  // Pop to first route (Home)
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ConfirmRow extends StatelessWidget {
-  const _ConfirmRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color? valueColor;
-
-  static const Color gold = Color(0xFFD6A34A);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: gold.withOpacity(0.16),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: gold, size: 18),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.55),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: TextStyle(
-                  color: valueColor ?? Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Lightweight ticker without importing animation libraries.
-class Ticker {
-  Ticker(this.onTick);
-  final VoidCallback onTick;
-  Timer? _timer;
-
-  void start() {
-    _timer ??= Timer.periodic(const Duration(seconds: 1), (_) => onTick());
-  }
-
-  void dispose() {
-    _timer?.cancel();
-    _timer = null;
   }
 }
